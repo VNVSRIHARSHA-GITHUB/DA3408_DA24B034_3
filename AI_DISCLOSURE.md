@@ -3,7 +3,7 @@
 AI assistance was used in accordance with the assignment's Fair Use of AI guidelines.
 
 ## Tools used
-Claude (Anthropic), through the claude.ai chat interface.
+Claude (Anthropic)
 
 ## How it was used
 - Understanding Spark and Ray concepts.

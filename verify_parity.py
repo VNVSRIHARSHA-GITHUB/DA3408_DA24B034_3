@@ -3,13 +3,6 @@ verify_parity.py -- do the Spark and Ray outputs match exactly?
 
 Compares two output folders (each with  trips/  and  hourly_speed/  Parquet folders).
 
-Row-level data (up to ~118 M rows) is streamed file by file, so memory stays small. Instead of
-sorting and diffing, every row gets a 64-bit hash and the hashes are summed. A sum is order-
-independent, so two outputs that contain the same rows (in any order, split over any number
-of files) give the same checksum. Per-column checksums show which column differs if they don't.
-
-Timestamps are compared as epoch microseconds, so it does not matter whether Spark stored
-them as INT96 / micros / tz-aware and Ray as naive microseconds.
 
 Usage:
   python verify_parity.py                                   # 3-month subset (spark_3month vs ray_3month)

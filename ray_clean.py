@@ -1,5 +1,5 @@
 """
-ray_clean.py -- DA3408 A3, Ray Data side. Same pipeline and rules as spark_clean.py.
+ray_clean.py.
 
   1. Ingestion      : ray.data.read_parquet (9 columns only)
   2. Normalization  : force ONE canonical 9-column schema right after ingestion

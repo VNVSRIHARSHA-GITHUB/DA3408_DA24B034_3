@@ -1,5 +1,5 @@
 """
-spark_clean.py -- DA3408 A3, Spark side (complete pipeline).
+spark_clean.py 
 
   1. Ingestion      : read yellow-taxi Parquet files
   2. Normalization  : force ONE canonical 9-column schema right after ingestion
