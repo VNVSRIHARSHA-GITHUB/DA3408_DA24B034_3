@@ -6,6 +6,8 @@
 
 This assignment implements the same large-scale data preprocessing pipeline using **Apache Spark** and **Ray Data**, and compares their execution time, resource utilization, and Python transformation overhead.
 
+AI assistance was used and is declared in [`AI_DISCLOSURE.md`](AI_DISCLOSURE.md).
+
 ---
 
 ## Setup
@@ -28,13 +30,16 @@ The benchmark environment used for this assignment was:
 | PySpark | 4.2.0 |
 | Ray | 2.58.0 |
 | CPU | 12 logical cores |
-| RAM | 14.9 GiB |
+| RAM | 14.9 GiB (4 GiB swap) |
+| Disk | NVMe SSD |
+
+Both clusters run on this single laptop, so all "nodes" share the same CPU, memory and disk.
 
 ---
 
 ## Dataset
 
-The benchmark uses the **NYC Yellow Taxi Trip Data** together with the **Taxi Zone Lookup** dataset.
+The benchmark uses the **NYC Yellow Taxi Trip Data** together with the **Taxi Zone Lookup** dataset. The data is not committed to this repository; download it from the NYC TLC trip record data page and place it as shown below.
 
 ### Yellow Taxi Trip Data
 
@@ -50,7 +55,7 @@ Total:
 - **125,135,782 raw rows**
 - Approximately **2 GB**
 
-December 2022 and January 2023 were excluded from the final benchmark because their schemas/physical column types were inconsistent with the later files.
+December 2022 and January 2023 were excluded from the final benchmark because their schemas/physical column types were inconsistent with the later files. The 2025 files contain one extra column (`cbd_congestion_fee`); both pipelines read only the nine columns they need, so this does not matter.
 
 The raw trip data was not modified.
 
@@ -79,14 +84,14 @@ The same logical preprocessing pipeline is implemented in both frameworks.
 NYC Taxi Parquet files
         |
         v
-     Ingestion
+     Ingestion  (9 columns, cast to one fixed schema)
         |
         v
      Cleansing
         |
         +--> Null filtering
         +--> Timestamp validation
-        +--> Trip duration validation
+        +--> Trip duration validation (1 min to 24 h)
         +--> Distance validation
         +--> Monetary-value validation
         +--> Duplicate removal
@@ -102,10 +107,10 @@ NYC Taxi Parquet files
         |
         +--> Trip duration
         +--> Pickup date/hour
-        +--> Average speed
+        +--> Average speed (custom Python function)
         |
         v
-   Speed filtering
+   Speed filtering (> 100 mph removed)
         |
         v
       Parquet
@@ -115,46 +120,37 @@ NYC Taxi Parquet files
         +--> Hourly aggregate
 ```
 
-The final benchmark produced **117,707,950 rows** after preprocessing.
+The final benchmark produced **117,707,950 rows** after preprocessing (94.06% of the raw rows).
+
+How the two implementations differ: Spark uses `dropDuplicates` and a broadcast join. Ray groups rows into 256 buckets by pickup second (identical rows always share a bucket), removes duplicates inside each bucket after a hash shuffle, and joins the 265-row lookup inside each batch with PyArrow. The cleansing rules and the Python speed function are identical.
 
 ---
 
 ## Layout
 
+Files in this repository:
+
 ```text
 DA3408_DA24B034_3/
 │
-├── data/
-│   ├── trips/                              # 35 NYC Taxi Parquet files
-│   └── lookup/
-│       └── taxi_zone_lookup.csv            # Taxi zone lookup
-│
-├── output/                                 # Generated Parquet outputs
-├── results/                                # Benchmark measurements
-├── screenshots/
-│   ├── spark/
-│   │   ├── spark_master_2_workers.png
-│   │   ├── spark_jobs_completed.png
-│   │   ├── spark_jobs_execution.png
-│   │   ├── spark_master_completed_apps.png
-│   │   ├── spark_run1.png
-│   │   ├── spark_run2.png
-│   │   └── spark_run3_udf_benchmark.png
-│   └── ray/
-│       ├── ray_dashboard_cluster.png
-│       └── ...
-│
-├── report/
-│   └── report.pdf
 ├── spark_clean.py                          # Spark implementation
 ├── ray_clean.py                            # Ray Data implementation
 ├── verify_parity.py                        # Spark/Ray output verification
 ├── requirements.txt
-├── README.md
-└── ...
+├── readme.md
+├── AI_DISCLOSURE.md                        # AI usage disclosure
+├── .gitignore
+│
+├── report/
+│   └── AIOPS_3-1.pdf                       # Benchmark report
+├── results/                                # Benchmark measurements (timings, parity, top logs)
+├── logs/                                   # Baseline memory, OOM checks, top logs for the Ray runs
+└── screenshots/
+    ├── spark/                              # Spark Master UI (2 workers) and Application UI
+    └── ray/                                # Ray Dashboard cluster view
 ```
 
-Large raw datasets and temporary runtime/spill directories are not required to be committed to GitHub.
+Not committed (generated or large): `data/` (input Parquet files and lookup CSV), `output/` (generated Parquet), `ray_spill/` and `spark_tmp/` (runtime spill directories), and the Ray session logs.
 
 ---
 
@@ -172,7 +168,7 @@ Spark Master
     +---- Worker 2 — 4 cores, 3 GiB
 ```
 
-Total worker resources: **8 cores, 6 GiB worker memory**.
+Total worker resources: **8 cores, 6 GiB worker memory**. The application runs 2 executors × 4 cores with 2 GiB each.
 
 Spark Master: `spark://127.0.0.1:7077`  
 Spark Master UI: `http://127.0.0.1:8080`  
@@ -242,6 +238,12 @@ python spark_clean.py --tag run2
 python spark_clean.py --tag run3
 ```
 
+Spark UDF benchmark (reads the exported Parquet):
+
+```bash
+python spark_clean.py --udf-benchmark --runs 3
+```
+
 ---
 
 # Ray
@@ -251,14 +253,14 @@ python spark_clean.py --tag run3
 The Ray cluster consists of:
 
 ```text
-Ray Head
+Ray Head (0 CPUs)
     |
-    +---- Worker 1 — 4 CPUs
+    +---- Worker 1 — 4 CPUs, 1 GB object store
     |
-    +---- Worker 2 — 4 CPUs
+    +---- Worker 2 — 4 CPUs, 1 GB object store
 ```
 
-The head node is configured with zero task CPUs, giving **8 worker CPUs**.
+The head node is configured with zero task CPUs, giving **8 worker CPUs**. Ray Data uses hash shuffle V2 (200 partitions) and 256 duplicate-removal buckets. Object spilling goes to an NVMe directory, because `/tmp` is a RAM-backed `tmpfs` on this machine.
 
 Ray Dashboard: `http://127.0.0.1:8265`
 
@@ -316,6 +318,23 @@ Run the Ray pipeline:
 python ray_clean.py --tag run1
 ```
 
+Ray UDF benchmark (reads the exported Parquet):
+
+```bash
+python ray_clean.py --udf-benchmark --runs 3
+```
+
+## Procedure used for each counted Ray run
+
+Ray ran close to its memory limit on this 14.9 GiB machine, so every counted run followed the same procedure:
+
+1. `ray stop`, then empty `/tmp/ray` and the spill directory.
+2. Flush swap (`sudo swapoff -a && sudo swapon -a`) and confirm swap is 0.
+3. Start the head and the two workers (commands above) and record `free -m` and `ray status`.
+4. Log `top -b -d 1` during the run.
+5. Run `ray_clean.py` with no tuning flags.
+6. Before any cleanup, search all Ray logs for memory-pressure kills (`grep -rl "memory pressure" /tmp/ray/session_latest/logs/`) and run the parity check. The result was 0 kills for every counted run.
+
 ---
 
 # Output Verification
@@ -341,20 +360,22 @@ The verification checks:
 - Hourly trip counts
 - Aggregate floating-point values
 
-The final full-data verification produced:
+Each of the three counted Ray runs was compared with the Spark output:
 
 ```text
 Spark rows: 117,707,950
-Ray rows:   117,707,950
+Ray rows:   117,707,950   (all three counted runs)
 
 OVERALL: PARITY OK
 ```
+
+The hourly aggregates have the same 192 groups and identical trip counts; the averages differ by at most 3.1e-13 (relative), which is floating-point noise. The `results/parity_*.json` files hold each check.
 
 ---
 
 # Benchmark Results
 
-Three counted benchmark runs were performed for each framework. Peak CPU and memory were measured using `top` with one-second sampling.
+Three counted benchmark runs were performed for each framework. Wall-clock time runs from ingestion to export. Peak CPU is `us`+`sy` and peak memory is the whole-machine "used" value, both from `top` with one-second sampling.
 
 ## Spark
 
@@ -374,11 +395,24 @@ Three counted benchmark runs were performed for each framework. Peak CPU and mem
 | Run 3 | 146.7 s | 115.2 s | 31.5 s | 78.3% | 13.22 GiB |
 | **Mean** | **147.8 s** | **117.7 s** | **30.2 s** | **76.9%** | **13.21 GiB** |
 
+## Ray development runs (not counted)
+
+Earlier full-data Ray runs behaved differently while the setup was being fixed:
+
+| Run | Total | Memory-pressure kills |
+|---|---:|---|
+| Warm-up (shuffle V2 + NVMe spill) | 157.1 s | yes (2 workers, tasks retried) |
+| Warm-up with a shuffle-concurrency option | 231.3 s | none in the driver output |
+| Same option, swap not flushed | 230.8 s | none |
+| Same option, swap flushed | 159.4 s | yes (all three Ray nodes) |
+
+The two ~231 s runs and the ~150 s runs differ by about 80 s, and I could not explain the gap from the data I recorded. Peak whole-machine memory stayed around 13.2–13.5 GiB in these runs and swap filled its 4 GiB. The option was later found not to be used by the shuffle in this plan and was removed from the code (see the tuning note). The report discusses these runs.
+
 ---
 
 # Python UDF Benchmark
 
-The custom average-speed transformation was benchmarked separately.
+The custom average-speed transformation was benchmarked separately, over the exported data (117.7 M rows): three timed runs after a discarded warm-up.
 
 ## Spark
 
@@ -398,30 +432,32 @@ Python UDF overhead: **41.71 s (5.3× relative to the built-in expression)**.
 
 Python overhead: **25.72 s (9.0× relative to the vectorized implementation)**.
 
-The row-wise Python implementation produced the same checksum in Spark and Ray.
+The row-wise Python implementation produced the same checksum in Spark and Ray (1,299,468,753.321). The Spark built-in and Ray NumPy versions each differ slightly from that and from each other, so they are not claimed to be numerically equivalent. The same Python function ran 1.8× faster in Ray than as a Spark UDF.
 
 ---
 
 # Performance Tuning Note
 
-The following optimizations were used during implementation.
+The following optimizations were suggested by an AI assistant, reviewed, and kept (see [`AI_DISCLOSURE.md`](AI_DISCLOSURE.md)).
 
 ### Spark
 
 - Selected only the required nine columns during ingestion.
-- Applied cleansing filters before downstream processing.
+- Applied cleansing filters before the shuffle-heavy duplicate removal.
 - Broadcast the small Taxi Zone Lookup table.
 - Used UTC timestamp handling.
-- Used 16 shuffle partitions for the available Spark cores.
+- Used 16 shuffle partitions for the 8 Spark cores.
 
 ### Ray
 
-- Used Ray Data Hash Shuffle V2.
+- Used Ray Data hash shuffle V2.
 - Used bucket-based duplicate handling.
 - Increased the open-file limit to `65535`.
 - Configured NVMe-backed object spilling to handle the large shuffle workload.
 
-During development, Ray experienced memory-pressure failures on some full-data runs. These were investigated by examining Ray logs and system-level resource usage. The final benchmark procedure completed all three counted runs without memory-pressure kills.
+A shuffle-concurrency option was also suggested, tested during development, and removed: inspection of the Ray 2.58 execution path showed that the executed hash-shuffle plan does not use it. It is not in the final code, and the runs that used it are not part of the counted results.
+
+During development, Ray experienced memory-pressure failures on some full-data runs. These were investigated by examining Ray logs and system-level resource usage. The final procedure completed all three counted runs without memory-pressure kills.
 
 ---
 
@@ -455,7 +491,6 @@ Additional Ray Dashboard evidence is available under `screenshots/ray/`.
 
 ---
 
-
 # Files
 
 | Requirement | Location |
@@ -466,7 +501,9 @@ Additional Ray Dashboard evidence is available under `screenshots/ray/`.
 | Spark cluster evidence | [`screenshots/spark/`](screenshots/spark/) |
 | Ray cluster evidence | [`screenshots/ray/`](screenshots/ray/) |
 | Benchmark results | [`results/`](results/) |
+| Memory baselines, OOM checks, `top` logs | [`logs/`](logs/) |
 | Final report | [`report/`](report/) |
+| AI usage disclosure | [`AI_DISCLOSURE.md`](AI_DISCLOSURE.md) |
 
 ---
 
@@ -479,22 +516,21 @@ Spark : 260.3 s
 Ray   : 147.8 s
 ```
 
-Ray was approximately **1.76× faster** for the measured end-to-end pipeline.
-
-However, the comparison should be interpreted in the context of the single-machine cluster environment, the different execution models, and the resource constraints of the machine.
+Ray was approximately **1.76× faster** for the measured end-to-end pipeline, and it is the winner for this task on speed. The comparison should be read in the context of the single-machine cluster, the different execution models, and the resource limits of the machine.
 
 Spark showed:
 
-- Higher CPU utilization.
-- Lower peak memory usage.
-- Much faster hourly aggregation.
+- Higher CPU utilization (99.5% vs. 76.9% peak).
+- Lower peak memory usage (10.85 vs. 13.21 GiB), and it ran without any special tuning.
+- Much faster hourly aggregation (4.7 s vs. 30.2 s).
 
 Ray showed:
 
 - Lower peak CPU utilization.
 - Faster overall preprocessing and export.
-- Strong performance for the Python-based transformation.
+- A faster row-wise Python transformation (28.95 s vs. 51.36 s for the same function).
+- Higher memory use: it ran close to its own kill threshold with swap full, and getting a full run to complete needed extra setup (file limit, NVMe spill, one fixed run procedure).
 
-The final choice therefore depends on the workload. Ray was faster for this Python-heavy preprocessing pipeline, while Spark demonstrated advantages in built-in aggregation performance and lower memory usage.
+For an **AI-first** project I would choose Ray (Python-native tasks, faster row-wise Python, and ML libraries), provided memory is planned for. For a **BI-first** project I would choose Spark (SQL/DataFrames, built-in expressions, predictable memory behavior). These conclusions come from one dataset on one machine and may not carry over to a multi-node cluster.
 
 Detailed methodology, benchmark analysis, UDF analysis, parity results, and limitations are provided in the final report.
