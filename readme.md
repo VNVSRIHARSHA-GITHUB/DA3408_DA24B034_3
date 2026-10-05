@@ -142,7 +142,7 @@ DA3408_DA24B034_3/
 ├── .gitignore
 │
 ├── report/
-│   └── AIOPS_3-1.pdf                       # Benchmark report
+│   └── AIOPS_3.pdf                       # Benchmark report
 ├── results/                                # Benchmark measurements (timings, parity, top logs)
 ├── logs/                                   # Baseline memory, OOM checks, top logs for the Ray runs
 └── screenshots/
