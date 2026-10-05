@@ -1,0 +1,7 @@
+{"kind": "pipeline", "tag": "spark_3month_full", "input": "data/trips/yellow_tripdata_2023-0[2-4].parquet", "rows": 9370518, "seconds_total": 26.34, "seconds_pipeline_export": 25.08, "seconds_hourly_agg": 1.26}
+{"kind": "udf_benchmark", "trips_dir": "/home/sriharsha/projects/DA3408_DA24B034_3/output/spark_clean/trips", "python_udf": [2.38, 2.25, 2.37], "native_expr": [0.68, 0.57, 0.56]}
+{"kind": "pipeline", "tag": "warmup", "input": "/home/sriharsha/projects/DA3408_DA24B034_3/data/trips/*.parquet", "rows": 117707950, "seconds_total": 256.97, "seconds_pipeline_export": 251.87, "seconds_hourly_agg": 5.1}
+{"kind": "pipeline", "tag": "run1", "input": "/home/sriharsha/projects/DA3408_DA24B034_3/data/trips/*.parquet", "rows": 117707950, "seconds_total": 261.13, "seconds_pipeline_export": 256.5, "seconds_hourly_agg": 4.64}
+{"kind": "pipeline", "tag": "run2", "input": "/home/sriharsha/projects/DA3408_DA24B034_3/data/trips/*.parquet", "rows": 117707950, "seconds_total": 266.3, "seconds_pipeline_export": 261.48, "seconds_hourly_agg": 4.81}
+{"kind": "pipeline", "tag": "run3", "input": "/home/sriharsha/projects/DA3408_DA24B034_3/data/trips/*.parquet", "rows": 117707950, "seconds_total": 253.57, "seconds_pipeline_export": 248.83, "seconds_hourly_agg": 4.75}
+{"kind": "udf_benchmark", "trips_dir": "/home/sriharsha/projects/DA3408_DA24B034_3/output/spark_clean/trips", "python_udf": [53.0, 51.36, 52.71], "native_expr": [9.73, 9.65, 9.75]}

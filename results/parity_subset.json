@@ -1,0 +1,17 @@
+{
+  "spark_dir": "/home/sriharsha/projects/DA3408_DA24B034_3/output/spark_3month",
+  "ray_dir": "/home/sriharsha/projects/DA3408_DA24B034_3/output/ray_3month",
+  "same columns": true,
+  "row count": true,
+  "null counts equal": true,
+  "per-column checksums equal": true,
+  "whole-row checksums equal": true,
+  "numeric min/max/sum within 1e-9": true,
+  "hourly: same columns": true,
+  "hourly: same number of groups": true,
+  "hourly: same group keys": true,
+  "hourly: trip counts identical": true,
+  "hourly: avg_speed_mph within 1e-9": true,
+  "hourly: avg_trip_distance within 1e-9": true,
+  "parity_ok": true
+}

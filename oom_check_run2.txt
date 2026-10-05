@@ -1,0 +1,6 @@
+/tmp/ray/session_latest/logs/raylet.2.err
+/tmp/ray/session_latest/logs/raylet.2.out
+/tmp/ray/session_latest/logs/raylet.1.err
+/tmp/ray/session_latest/logs/raylet.1.out
+/tmp/ray/session_latest/logs/raylet.err
+/tmp/ray/session_latest/logs/raylet.out

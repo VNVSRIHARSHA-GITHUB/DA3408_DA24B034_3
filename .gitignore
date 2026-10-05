@@ -1,0 +1,8 @@
+data/
+output/
+evidence_*/
+ray_spill/
+ray_spill~
+spark_tmp/
+__pycache__/
+.venv/

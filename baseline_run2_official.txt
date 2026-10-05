@@ -1,0 +1,27 @@
+Mon Oct  5 12:55:44 PM IST 2026
+               total        used        free      shared  buff/cache   available
+Mem:           14913        6901        1025         799        7431        8011
+Swap:           4095           1        4094
+======== Autoscaler status: 2026-10-05 12:55:41.521220 ========
+Node status
+---------------------------------------------------------------
+Active:
+ 1 node_d08d4329e6a22e21043f25c124f401cd38375112ac4802d22761f684
+ 1 node_a4f792e69c935325727083f82d498228c4a6bb5f6fb0f35cc34e2026
+ 1 node_fab95e9b4eb0cd5740e9e67f3a62a66077ca5831a0ed5b8024f7d6bf
+Pending:
+ (no pending nodes)
+Recent failures:
+ (no failures)
+
+Resources
+---------------------------------------------------------------
+Total Usage:
+ 0.0/8.0 CPU
+ 0B/20.31GiB memory
+ 0B/4.43GiB object_store_memory
+
+From request_resources:
+ (none)
+Pending Demands:
+ (no resource demands)
